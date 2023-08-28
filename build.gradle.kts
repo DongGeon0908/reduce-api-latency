@@ -44,6 +44,7 @@ allOpen {
 object DependencyVersion {
     const val KOTLIN_LOGGING_VERSION = "3.0.0"
     const val LOGBACK_ENCODER = "7.2"
+    const val COROUTINE_VERSION = "1.6.4"
 }
 
 dependencies {
@@ -59,6 +60,11 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
+    /** coroutine */
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${DependencyVersion.COROUTINE_VERSION}")
+    implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
 
     /** logger */
     implementation("io.github.microutils:kotlin-logging-jvm:${DependencyVersion.KOTLIN_LOGGING_VERSION}")
