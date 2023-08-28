@@ -115,7 +115,7 @@ spring:
 > Based on the provided description, it appears that the API operates synchronously with 4 database queries, 4 Redis queries, and 4 CPU computation steps. Finally, it makes 4 calls to the Google Search Trend API. The average latency for these operations falls between 1.5 seconds to 2 seconds.
 
 ```kotlin
-    fun getTestV1(request: TestRequest): TestResponse {
+fun getTestV1(request: TestRequest): TestResponse {
     /** Database */
     val test1Model = test1Repository.findAllById(request.test1Id)
         .map { test1 -> Test1Model.from(test1) }
@@ -159,4 +159,22 @@ spring:
         trendModels = listOf(realTrend1, realTrend2, realTrend3, realTrend4)
     )
 }
+```
+
+**Add coroutine dependencies to use runBlocking.**
+
+```kotlin
+const val COROUTINE_VERSION = "1.6.4"
+
+/** coroutine */
+implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${DependencyVersion.COROUTINE_VERSION}")
+implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
+```
+
+**Example API CURL**
+
+```
+curl --request GET \
+  --url 'http://localhost:8080/api/ral/v1/test?test1Id=1&test1Id=2&test1Id=3&test1Id=4&test1Id=5&test1Id=6&test1Id=7&test2Id=1&test2Id=2&test2Id=3&test2Id=4&test2Id=5&test2Id=6&test2Id=7&test3Id=1&test3Id=2&test3Id=3&test3Id=4&test3Id=5&test3Id=6&test3Id=7&test4Id=1&test4Id=2&test4Id=3&test4Id=4&test4Id=5&test4Id=6&test4Id=7'
 ```
