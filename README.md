@@ -2,6 +2,17 @@
 
 > This repository offers resources for reducing latency through techniques, source code, and tutorials. Ideal for developers and engineers interested in optimizing network, computing, and data processing for real-world applications.
 
+---
+
+### Project Spec
+
+- SpringBoot 2.7.6
+- Mysql 8.0
+- Redis
+- Kotlin by Java-11
+
+---
+
 ### Setup Project (Part.0)
 
 **Dependency**
@@ -109,6 +120,8 @@ spring:
         port: 6379
 
 ```
+
+---
 
 ### Basic Api Setup (Part.1)
 
