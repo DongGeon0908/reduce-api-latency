@@ -10,10 +10,13 @@
 - Mysql 8.0
 - Redis
 - Kotlin by Java-11
+- Spring MVC and Webflux
 
 ---
 
 ### Setup Project (Part.0)
+
+> The initial project setup is done based on Spring MVC.
 
 **Dependency**
 
@@ -49,12 +52,11 @@ dependencies {
 }
 ```
 
-**DDL**
+**DDL Scripts**
 
 ```sql
 -- CREATE TABLE
-CREATE
-DATABASE reduce_api_latency CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE DATABASE reduce_api_latency CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 CREATE TABLE `test_1`
 (
