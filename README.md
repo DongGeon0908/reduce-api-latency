@@ -193,3 +193,11 @@ implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
 curl --request GET \
   --url 'http://localhost:8080/api/ral/v1/test?test1Id=1&test1Id=2&test1Id=3&test1Id=4&test1Id=5&test1Id=6&test1Id=7&test2Id=1&test2Id=2&test2Id=3&test2Id=4&test2Id=5&test2Id=6&test2Id=7&test3Id=1&test3Id=2&test3Id=3&test3Id=4&test3Id=5&test3Id=6&test3Id=7&test4Id=1&test4Id=2&test4Id=3&test4Id=4&test4Id=5&test4Id=6&test4Id=7'
 ```
+
+**Jmeter Test Report**
+
+> Test after setting up with 10 user calls 10 times.
+
+![Image1](src/main/resources/images/test-1-1.png)
+
+![Image2](src/main/resources/images/test-1-2.png)
