@@ -56,7 +56,8 @@ dependencies {
 
 ```sql
 -- CREATE TABLE
-CREATE DATABASE reduce_api_latency CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE
+DATABASE reduce_api_latency CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 CREATE TABLE `test_1`
 (
@@ -197,7 +198,202 @@ curl --request GET \
 **Jmeter Test Report**
 
 > Test after setting up with 10 user calls 10 times.
+> The average latency is approximately 1.5 to 3 seconds.
 
 ![Image1](src/main/resources/images/test-1-1.png)
 
 ![Image2](src/main/resources/images/test-1-2.png)
+
+---
+
+### Reduce Api Latency By Async and CompletableFuture (Part.1)
+
+> Using @Async and CompletableFuture to reduce API latency. We were able to achieve more than a fourfold performance improvement compared to the v1 API. However, we also experienced thread wastage due to excessive use of @Async.
+> Managing threads has proven to be challenging, with concerns about resource wastage. Additionally, there's a risk of running into thread shortages.
+
+```kotlin
+@Service
+class TestV2AsyncService(
+    private val test1Repository: Test1Repository,
+    private val test2Repository: Test2Repository,
+    private val test3Repository: Test3Repository,
+    private val test4Repository: Test4Repository,
+    private val cacheService: CacheService,
+    private val mathEngine: MathEngine,
+    private val googleClient: GoogleClient
+) {
+    @Async(value = "taskExecutor")
+    fun asyncFindAllByIdTest1(ids: Set<Long>): CompletableFuture<List<Test1Model>> {
+        return CompletableFuture.completedFuture(
+            test1Repository.findAllById(ids)
+                .map { test1 -> Test1Model.from(test1) }
+        )
+    }
+
+    @Async(value = "taskExecutor")
+    fun asyncFindAllByIdTest2(ids: Set<Long>): CompletableFuture<List<Test2Model>> {
+        return CompletableFuture.completedFuture(
+            test2Repository.findAllById(ids)
+                .map { test2 -> Test2Model.from(test2) }
+        )
+    }
+
+    @Async(value = "taskExecutor")
+    fun asyncFindAllByIdTest3(ids: Set<Long>): CompletableFuture<List<Test3Model>> {
+        return CompletableFuture.completedFuture(
+            test3Repository.findAllById(ids)
+                .map { test3 -> Test3Model.from(test3) }
+        )
+    }
+
+    @Async(value = "taskExecutor")
+    fun asyncFindAllByIdTest4(ids: Set<Long>): CompletableFuture<List<Test4Model>> {
+        return CompletableFuture.completedFuture(
+            test4Repository.findAllById(ids)
+                .map { test4 -> Test4Model.from(test4) }
+        )
+    }
+
+    @Async(value = "taskExecutor")
+    fun asyncMathEngine(): CompletableFuture<String> {
+        return CompletableFuture.completedFuture(
+            mathEngine.execute()
+        )
+    }
+
+    @Async(value = "taskExecutor")
+    fun asyncGetCache(key: String): CompletableFuture<String> {
+        return CompletableFuture.completedFuture(
+            cacheService.get(key)
+        )
+    }
+
+    @Async(value = "taskExecutor")
+    fun asyncGetRealTrend(): CompletableFuture<GoogleRealTimeSearchTrendModel> {
+        return CompletableFuture.completedFuture(
+            runBlocking { googleClient.getRealTimeTrends() }
+        )
+    }
+}
+```
+
+```kotlin
+@Service
+class TestV2Service(
+    private val testV2AsyncService: TestV2AsyncService
+) {
+    fun getTestV2(request: TestRequest): TestResponse {
+        /** Database */
+        val test1ModelCf = testV2AsyncService.asyncFindAllByIdTest1(request.test1Id)
+        val test2ModelCf = testV2AsyncService.asyncFindAllByIdTest2(request.test2Id)
+        val test3ModelCf = testV2AsyncService.asyncFindAllByIdTest3(request.test3Id)
+        val test4ModelCf = testV2AsyncService.asyncFindAllByIdTest4(request.test4Id)
+
+        /** Redis Cache */
+        val test1CacheCf = testV2AsyncService.asyncGetCache("test1:key:${request.test1Id}")
+        val test2CacheCf = testV2AsyncService.asyncGetCache("test2:key:${request.test2Id}")
+        val test3CacheCf = testV2AsyncService.asyncGetCache("test3:key:${request.test3Id}")
+        val test4CacheCf = testV2AsyncService.asyncGetCache("test4:key:${request.test4Id}")
+
+        /** Cpu Logic */
+        val result1Cf = testV2AsyncService.asyncMathEngine()
+        val result2Cf = testV2AsyncService.asyncMathEngine()
+        val result3Cf = testV2AsyncService.asyncMathEngine()
+        val result4Cf = testV2AsyncService.asyncMathEngine()
+
+        /** WebClient Api Call */
+        val realTrend1Cf = testV2AsyncService.asyncGetRealTrend()
+        val realTrend2Cf = testV2AsyncService.asyncGetRealTrend()
+        val realTrend3Cf = testV2AsyncService.asyncGetRealTrend()
+        val realTrend4Cf = testV2AsyncService.asyncGetRealTrend()
+
+        /** join all completable futures */
+        CompletableFuture.allOf(
+            test1ModelCf, test2ModelCf, test3ModelCf, test4ModelCf,
+            test1CacheCf, test2CacheCf, test3CacheCf, test4CacheCf,
+            result1Cf, result2Cf, result3Cf, result4Cf,
+            realTrend1Cf, realTrend2Cf, realTrend3Cf, realTrend4Cf
+        ).join()
+
+        return TestResponse.of(
+            cacheModel = TestCacheModel(
+                test1 = test1CacheCf.get(),
+                test2 = test2CacheCf.get(),
+                test3 = test3CacheCf.get(),
+                test4 = test4CacheCf.get()
+            ),
+            test1s = test1ModelCf.get(),
+            test2s = test2ModelCf.get(),
+            test3s = test3ModelCf.get(),
+            test4s = test4ModelCf.get(),
+            result = listOf(result1Cf.get(), result2Cf.get(), result3Cf.get(), result4Cf.get()),
+            trendModels = listOf(realTrend1Cf.get(), realTrend2Cf.get(), realTrend3Cf.get(), realTrend4Cf.get())
+        )
+    }
+}
+```
+
+```kotlin
+@EnableAsync
+@Configuration
+class AsyncConfig : AsyncConfigurerSupport() {
+    @Bean("taskExecutor")
+    fun taskExecutor(): ThreadPoolTaskExecutor {
+        return ExecutorGenerator(
+            threadName = "taskExecutor",
+            corePoolSize = 10,
+            maxPoolSize = 20,
+            queueCapacity = 20
+        ).generate()
+    }
+}
+
+class ExecutorGenerator(
+    private val threadName: String,
+    private val corePoolSize: Int = DEFAULT_EXECUTOR_CORE_POOL_SIZE,
+    private val maxPoolSize: Int = DEFAULT_EXECUTOR_MAX_POOL_SIZE,
+    private val queueCapacity: Int = DEFAULT_EXECUTOR_QUEUE_CAPACITY
+) {
+    private val logger = mu.KotlinLogging.logger {}
+
+    companion object {
+        const val DEFAULT_EXECUTOR_CORE_POOL_SIZE = 5
+        const val DEFAULT_EXECUTOR_MAX_POOL_SIZE = 10
+        const val DEFAULT_EXECUTOR_QUEUE_CAPACITY = 10
+    }
+
+    fun generate(): ThreadPoolTaskExecutor {
+        val threadPoolTaskExecutor = ThreadPoolTaskExecutor()
+
+        threadPoolTaskExecutor.corePoolSize = this.corePoolSize
+        threadPoolTaskExecutor.maxPoolSize = this.maxPoolSize
+        threadPoolTaskExecutor.queueCapacity = this.queueCapacity
+        threadPoolTaskExecutor.setThreadNamePrefix("${this.threadName}-")
+        threadPoolTaskExecutor.setTaskDecorator(AsyncTaskDecorator())
+        threadPoolTaskExecutor.setRejectedExecutionHandler(AsyncRejectedExecutionHandler())
+        threadPoolTaskExecutor.initialize()
+
+        logger.info { "generate ThreadPoolTaskExecutor / threadName $threadName / corePoolSize $corePoolSize / maxPoolSize $maxPoolSize / queueCapacity $queueCapacity" }
+
+        return threadPoolTaskExecutor
+    }
+}
+```
+
+**Example API CURL**
+
+```
+curl --request GET \
+  --url 'http://localhost:8080/api/ral/v2/test?test1Id=1&test1Id=2&test1Id=3&test1Id=4&test1Id=5&test1Id=6&test1Id=7&test2Id=1&test2Id=2&test2Id=3&test2Id=4&test2Id=5&test2Id=6&test2Id=7&test3Id=1&test3Id=2&test3Id=3&test3Id=4&test3Id=5&test3Id=6&test3Id=7&test4Id=1&test4Id=2&test4Id=3&test4Id=4&test4Id=5&test4Id=6&test4Id=7'
+```
+
+**Jmeter Test Report**
+
+> Test after setting up with 10 user calls 10 times.
+> The average latency is approximately 300ms to 350ms.
+
+![Image1](src/main/resources/images/test-2-1.png)
+
+![Image2](src/main/resources/images/test-2-2.png)
+
+---
