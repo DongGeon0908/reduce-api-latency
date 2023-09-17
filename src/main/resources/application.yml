@@ -15,6 +15,10 @@ spring:
   redis:
     host: localhost
     port: 6379
+  data:
+    redis:
+      repositories:
+        enabled: false
 
 client:
   search-trend:
