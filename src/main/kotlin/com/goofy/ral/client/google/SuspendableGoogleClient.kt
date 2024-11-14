@@ -11,7 +11,7 @@ class SuspendableGoogleClient(
 ) : GoogleClient {
     private val logger = mu.KotlinLogging.logger {}
 
-    override suspend fun getRealTimeTrends(): GoogleRealTimeSearchTrendModel {
+    override suspend fun getRealTimeTrends(): GoogleRealTimeSearchTrendModel? {
         return webClient.get()
             .uri("/trends/api/realtimetrends") { builder ->
                 builder
@@ -32,12 +32,9 @@ class SuspendableGoogleClient(
             }
     }
 
-    private inline fun <reified T> mapperGoogleResponseModel(response: String): T {
+    private inline fun <reified T> mapperGoogleResponseModel(response: String): T? {
         return runCatching {
             mapper.readValue<T>(response)
-        }.getOrElse { e ->
-            logger.error { "fail to mapping / ${e.message}" }
-            throw RuntimeException()
-        }
+        }.getOrNull()
     }
 }

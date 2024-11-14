@@ -72,7 +72,7 @@ class TestV2AsyncService(
     }
 
     @Async(value = "taskExecutor")
-    fun asyncGetRealTrend(): CompletableFuture<GoogleRealTimeSearchTrendModel> {
+    fun asyncGetRealTrend(): CompletableFuture<GoogleRealTimeSearchTrendModel?> {
         return CompletableFuture.completedFuture(
             runBlocking { googleClient.getRealTimeTrends() }
         )

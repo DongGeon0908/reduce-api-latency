@@ -1,13 +1,7 @@
 package com.goofy.ral.service
 
 import com.goofy.ral.client.google.GoogleClient
-import com.goofy.ral.dto.Test1Model
-import com.goofy.ral.dto.Test2Model
-import com.goofy.ral.dto.Test3Model
-import com.goofy.ral.dto.Test4Model
-import com.goofy.ral.dto.TestCacheModel
-import com.goofy.ral.dto.TestRequest
-import com.goofy.ral.dto.TestResponse
+import com.goofy.ral.dto.*
 import com.goofy.ral.repository.Test1Repository
 import com.goofy.ral.repository.Test2Repository
 import com.goofy.ral.repository.Test3Repository
@@ -66,7 +60,7 @@ class TestV1Service(
             test3s = test3Model,
             test4s = test4Model,
             result = listOf(result1, result2, result3, result4),
-            trendModels = listOf(realTrend1, realTrend2, realTrend3, realTrend4)
+            trendModels = listOfNotNull(realTrend1, realTrend2, realTrend3, realTrend4)
         )
     }
 }

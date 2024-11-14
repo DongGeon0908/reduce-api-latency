@@ -1,8 +1,14 @@
 # Reduce Api Latency
 
-> This repository offers resources for reducing latency through techniques, source code, and tutorials. Ideal for developers and engineers interested in optimizing network, computing, and data processing for real-world applications.
+> This repository offers resources for reducing latency through techniques, source code, and tutorials. Ideal for
+> developers and engineers interested in optimizing network, computing, and data processing for real-world applications.
 
 ---
+
+### Precautions
+
+> During testing, variations may occur depending on the current computer resources.
+> Additionally, due to several computer replacements, the metrics for images and text may differ.
 
 ### Project Spec
 
@@ -105,30 +111,32 @@ CREATE TABLE `test_4`
 
 ```yaml
 spring:
-    datasource:
-        url: jdbc:mysql://localhost:3306/reduce_api_latency?useUnicode=true&charset=utf8mb4&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Seoul
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        username: root
-        password:
-        hikari:
-            minimum-idle: 10
-            maximum-pool-size: 20
-    jpa:
-        show-sql: true
-        hibernate:
-            ddl-auto: none
-        open-in-view: false
-    redis:
-        host: localhost
-        port: 6379
+  datasource:
+    url: jdbc:mysql://localhost:3306/reduce_api_latency?useUnicode=true&charset=utf8mb4&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Seoul
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password:
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 20
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  redis:
+    host: localhost
+    port: 6379
 
 ```
 
 ---
 
-### Basic Api Setup (Part.1)
+### Basic Api Setup (Part.0)
 
-> Based on the provided description, it appears that the API operates synchronously with 4 database queries, 4 Redis queries, and 4 CPU computation steps. Finally, it makes 4 calls to the Google Search Trend API. The average latency for these operations falls between 1.5 seconds to 2 seconds.
+> Based on the provided description, it appears that the API operates synchronously with 4 database queries, 4 Redis
+> queries, and 4 CPU computation steps. Finally, it makes 4 calls to the Google Search Trend API. The average latency for
+> these operations falls between 1.5 seconds to 2 seconds.
 
 ```kotlin
 fun getTestV1(request: TestRequest): TestResponse {
@@ -208,8 +216,10 @@ curl --request GET \
 
 ### Reduce Api Latency By Async and CompletableFuture (Part.1)
 
-> Using @Async and CompletableFuture to reduce API latency. We were able to achieve more than a fourfold performance improvement compared to the v1 API. However, we also experienced thread wastage due to excessive use of @Async.
-> Managing threads has proven to be challenging, with concerns about resource wastage. Additionally, there's a risk of running into thread shortages.
+> Using @Async and CompletableFuture to reduce API latency. We were able to achieve more than a fourfold performance
+> improvement compared to the v1 API. However, we also experienced thread wastage due to excessive use of @Async.
+> Managing threads has proven to be challenging, with concerns about resource wastage. Additionally, there's a risk of
+> running into thread shortages.
 
 ```kotlin
 @Service
@@ -395,5 +405,113 @@ curl --request GET \
 ![Image1](src/main/resources/images/test-2-1.png)
 
 ![Image2](src/main/resources/images/test-2-2.png)
+
+---
+
+### Reduce Api Latency By Coroutines (Part.2)
+
+> Using Coroutines, we were able to reduce API latency and achieve more than a fourfold performance improvement compared
+> to the v1 API.
+> Additionally, we significantly reduced thread wastage compared to v2.
+
+```kotlin
+class TestV3Service(
+    private val test1Repository: Test1Repository,
+    private val test2Repository: Test2Repository,
+    private val test3Repository: Test3Repository,
+    private val test4Repository: Test4Repository,
+    private val cacheService: CacheService,
+    private val mathEngine: MathEngine,
+    private val googleClient: GoogleClient,
+) {
+    suspend fun getTestV3(request: TestRequest): TestResponse {
+        return coroutineScope {
+            /** Database */
+            val test1Model = async(Dispatchers.IO) {
+                test1Repository.findAllById(request.test1Id).map { test1 -> Test1Model.from(test1) }
+            }
+            val test2Model = async(Dispatchers.IO) {
+                test2Repository.findAllById(request.test2Id).map { test2 -> Test2Model.from(test2) }
+            }
+            val test3Model = async(Dispatchers.IO) {
+                test3Repository.findAllById(request.test3Id).map { test3 -> Test3Model.from(test3) }
+            }
+            val test4Model = async(Dispatchers.IO) {
+                test4Repository.findAllById(request.test4Id).map { test4 -> Test4Model.from(test4) }
+            }
+
+            /** Redis Cache */
+            val test1Cache = async(Dispatchers.IO) {
+                cacheService.get("test1:key:${request.test1Id}")
+            }
+            val test2Cache = async(Dispatchers.IO) {
+                cacheService.get("test2:key:${request.test2Id}")
+            }
+            val test3Cache = async(Dispatchers.IO) {
+                cacheService.get("test3:key:${request.test3Id}")
+            }
+            val test4Cache = async(Dispatchers.IO) {
+                cacheService.get("test4:key:${request.test4Id}")
+            }
+
+            /** Cpu Logic */
+            val result1 = async(Dispatchers.Default) {
+                mathEngine.execute()
+            }
+            val result2 = async(Dispatchers.Default) {
+                mathEngine.execute()
+            }
+            val result3 = async(Dispatchers.Default) {
+                mathEngine.execute()
+            }
+            val result4 = async(Dispatchers.Default) {
+                mathEngine.execute()
+            }
+
+            /** WebClient Api Call */
+            val realTrend1 = async(Dispatchers.IO) { googleClient.getRealTimeTrends() }
+            val realTrend2 = async(Dispatchers.IO) { googleClient.getRealTimeTrends() }
+            val realTrend3 = async(Dispatchers.IO) { googleClient.getRealTimeTrends() }
+            val realTrend4 = async(Dispatchers.IO) { googleClient.getRealTimeTrends() }
+
+            TestResponse.of(
+                cacheModel = TestCacheModel(
+                    test1 = test1Cache.await(),
+                    test2 = test2Cache.await(),
+                    test3 = test3Cache.await(),
+                    test4 = test4Cache.await()
+                ),
+                test1s = test1Model.await(),
+                test2s = test2Model.await(),
+                test3s = test3Model.await(),
+                test4s = test4Model.await(),
+                result = listOf(result1.await(), result2.await(), result3.await(), result4.await()),
+                trendModels = listOfNotNull(
+                    realTrend1.await(),
+                    realTrend2.await(),
+                    realTrend3.await(),
+                    realTrend4.await()
+                )
+            )
+        }
+    }
+}
+```
+
+**Example API CURL**
+
+```
+curl --request GET \
+  --url 'http://localhost:8080/api/ral/v3/test?test1Id=1&test1Id=2&test1Id=3&test1Id=4&test1Id=5&test1Id=6&test1Id=7&test2Id=1&test2Id=2&test2Id=3&test2Id=4&test2Id=5&test2Id=6&test2Id=7&test3Id=1&test3Id=2&test3Id=3&test3Id=4&test3Id=5&test3Id=6&test3Id=7&test4Id=1&test4Id=2&test4Id=3&test4Id=4&test4Id=5&test4Id=6&test4Id=7'
+```
+
+**Jmeter Test Report**
+
+> Test after setting up with 10 user calls 10 times.
+> The average latency is approximately 280ms to 330ms.
+
+![Image1](src/main/resources/images/test-3-1.png)
+
+![Image2](src/main/resources/images/test-3-2.png)
 
 ---

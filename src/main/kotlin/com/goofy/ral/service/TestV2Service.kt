@@ -55,7 +55,7 @@ class TestV2Service(
             test3s = test3ModelCf.get(),
             test4s = test4ModelCf.get(),
             result = listOf(result1Cf.get(), result2Cf.get(), result3Cf.get(), result4Cf.get()),
-            trendModels = listOf(realTrend1Cf.get(), realTrend2Cf.get(), realTrend3Cf.get(), realTrend4Cf.get())
+            trendModels = listOfNotNull(realTrend1Cf.get(), realTrend2Cf.get(), realTrend3Cf.get(), realTrend4Cf.get())
         )
     }
 }
